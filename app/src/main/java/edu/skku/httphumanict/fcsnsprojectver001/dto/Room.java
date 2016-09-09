@@ -73,6 +73,8 @@ public class Room implements FCSNSDTOAble {
         this.notices = notices;
     }
     public ArrayList<Dialog> getDialogs() {
+        if(dialogs == null)
+            dialogs = new ArrayList<>();
         return dialogs;
     }
     public void setDialogs(ArrayList<Dialog> dialogs) {

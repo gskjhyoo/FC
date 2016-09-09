@@ -14,7 +14,7 @@ public class Dialog implements FCSNSDTOAble {
     String roomId;
     Date regDate;
     String content;
-    String fromId;
+    String from;
     ArrayList<String> checked;
 
     public Dialog(String _id, String roomId, Date regDate, String content, String fromId, ArrayList<String> checkedIds) {
@@ -22,7 +22,7 @@ public class Dialog implements FCSNSDTOAble {
         this.roomId = roomId;
         this.regDate = regDate;
         this.content = content;
-        this.fromId = fromId;
+        this.from = fromId;
         this.checked = checkedIds;
     }
     /**
@@ -48,7 +48,7 @@ public class Dialog implements FCSNSDTOAble {
         sb.append(", roomId='").append(roomId).append('\'');
         sb.append(", regDate=").append(regDate);
         sb.append(", content='").append(content).append('\'');
-        sb.append(", fromId='").append(fromId).append('\'');
+        sb.append(", fromId='").append(from).append('\'');
         sb.append(", checkedIds=").append(checked);
         sb.append('}');
         return sb.toString();
@@ -87,10 +87,10 @@ public class Dialog implements FCSNSDTOAble {
         this.content = content;
     }
     public String getFromId() {
-        return fromId;
+        return from;
     }
     public void setFromId(String fromId) {
-        this.fromId = fromId;
+        this.from = fromId;
     }
     public ArrayList<String> getCheckedIds() {
         return checked;

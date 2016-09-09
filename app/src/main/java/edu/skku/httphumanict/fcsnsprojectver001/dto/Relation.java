@@ -54,7 +54,7 @@ public class Relation implements FCSNSDTOAble {
         return (Relation) UtilGJSON.fromJSON(_strJSON, Relation.class);
     }
 
-    class FamilyShip {
+    public class FamilyShip {
         //! 사용자 아이디로 변경 해야 함.
         // 사용자 측에서 population 을 이용하여 내부 정보를 끼워 송신할 예정
         // 동기화 시점은 LogoAcitivity에서 관계를 가져오는 것으로 시작
@@ -82,7 +82,7 @@ public class Relation implements FCSNSDTOAble {
             return sb.toString();
         }
 
-        public User getUserId() {
+        public User getUser() {
             return userId;
         }
 

@@ -9,7 +9,11 @@ android {
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
-        /*multiDexEnabled true*/
+        multiDexEnabled true
+    }
+    dexOptions {
+        javaMaxHeapSize "4g"
+        preDexLibraries = false
     }
     buildTypes {
         release {
@@ -28,7 +32,7 @@ dependencies {
     compile files('libs/gson-2.2.4.jar')
     compile 'com.google.android.gms:play-services:9.4.0'
     compile 'com.squareup.okhttp3:okhttp:3.2.0'
-    /*compile 'com.android.support.multiidex:1.0.0'*/
+    compile 'com.android.support:multidex:1.0.0'
     //
 }
 apply plugin: 'com.google.gms.google-services'

@@ -10,5 +10,5 @@ public interface FCSNSable {
     String SP_KEY_ROOMS = "ROOMS";
 
     // url body
-    String URL_APP_SERVER = "http://192.168.1.3:1337";
+    String URL_APP_SERVER = "http://115.71.239.41:34266";
 }// end of class

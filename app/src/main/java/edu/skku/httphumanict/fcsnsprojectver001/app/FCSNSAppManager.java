@@ -86,4 +86,8 @@ public class FCSNSAppManager {
     public void setPresRoomIdx(int _nPresRoomIdx) {
         m_nPresRoomIdx = _nPresRoomIdx;
     }
+
+    public Room getPresentRoom() {
+        return getRooms().get(getPresRoomIdx());
+    }
 }// end of class

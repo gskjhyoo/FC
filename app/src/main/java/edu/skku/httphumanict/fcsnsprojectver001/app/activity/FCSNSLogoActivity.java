@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
+import android.support.multidex.MultiDex;
+import android.support.multidex.MultiDexApplication;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -34,6 +36,8 @@ public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
 
     final static int DELAY_FINISH = 1;
 
+    final static long lDelayTime = 4000;
+
     public static final String TAG = FCSNSLogoActivity.class.getName();
 
     /* 비동기 요청 사항 */
@@ -60,34 +64,38 @@ public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
 //
 //
         ////////////////////////////////////////////////////////////////////////////////////////////////
-        /*// 이종성 정보
+        /* 딸 정보
         User savedUser = new User();
         savedUser.set_id("57c6464cfb6a8e141146a1b7");
         savedUser.setPhone("01029429511");
-        savedUser.setName("이종성");
+        savedUser.setName("이지연");
         savedUser.setBirthDate(new Date());
         savedUser.setSex(1);
-        savedUser.setPushKey("test");
-        savedUser.setRole("아들");
-        */
-        // 김진황 정보
+        savedUser.setPushKey(strPushToken);
+        savedUser.setRole("딸");
+        //*/
+        /* 아들 정보*/
         User savedUser = new User();
         savedUser.set_id("57c478fd641796041bca7936");
         savedUser.setPhone("01092342879");
         savedUser.setName("김진황");
         savedUser.setBirthDate(new Date());
         savedUser.setSex(1);
-        savedUser.setPushKey("test");
+        savedUser.setPushKey(strPushToken);
         savedUser.setRole("아들");
         savedUser.setPushKey(strPushToken);
+        //*/
         // 방 정보 로딩
 
 
+        // 설정 더미데이터 SharedPreference에 저장
 //        Toast.makeText(this.getApplicationContext(), user, ).show();
         UtilSPrefer.saveStrData(this, SP_KEY, SP_KEY_USER, savedUser.toJson());
+
         ////////////////////////////////////////////////////////////////////////////////////////////////
 
         // 1. 사용자 저장 정보 로딩
+
         String strSavedUserData = UtilSPrefer.getSharedPreference(this, SP_KEY).getString(SP_KEY_USER, null);
         Log.d(TAG, "사용자 정보 로딩: " + strSavedUserData);
         // 2.1 사용자 정보 없는 경우
@@ -104,6 +112,7 @@ public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
         // 2.2 사용자 정보가 있는 경우
         // 사용자 정보를 이용하여 로그인 수행
         User user = User.fromJson(strSavedUserData);
+        user.setPushKey(strPushToken);
         /// async request
         loginTask = new ServerLoginAsyncTask();
         FCSNSAppManager.getInstance().setUser(user);
@@ -151,7 +160,7 @@ public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
 
         procTime = procTime - System.currentTimeMillis();
         final FCSNSLogoActivity temp = this;
-        if (procTime < 1000) {
+        if (procTime < lDelayTime) {
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -163,7 +172,7 @@ public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
                     FCSNSAppManager.getInstance().saveSharedPreference(FCSNSLogoActivity.this.getApplicationContext());
                     finish();
                 }
-            }, 1000 - procTime);
+            }, lDelayTime - procTime);
         } else {
             Intent intent = new Intent(temp.getApplicationContext(), FCSNSRoomActivity.class);
             startActivity(intent);

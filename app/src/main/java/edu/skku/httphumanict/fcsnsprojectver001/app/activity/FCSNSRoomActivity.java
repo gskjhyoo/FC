@@ -23,9 +23,12 @@ import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import java.io.IOException;
 import java.io.StringReader;
 import java.net.URL;
 import java.util.ArrayList;
@@ -33,6 +36,10 @@ import java.util.ArrayList;
 import edu.skku.httphumanict.fcsnsprojectver001.R;
 import edu.skku.httphumanict.fcsnsprojectver001.app.FCSNSAppManager;
 import edu.skku.httphumanict.fcsnsprojectver001.dto.Dialog;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.Relation;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.User;
+import edu.skku.httphumanict.fcsnsprojectver001.util.UtilGJSON;
+import edu.skku.httphumanict.fcsnsprojectver001.util.UtilHttp;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -41,7 +48,14 @@ import okhttp3.Response;
  *
  * Created by sk on 2016-08-31.
  */
-public class FCSNSRoomActivity extends AppCompatActivity {
+public class FCSNSRoomActivity extends AppCompatActivity implements FCSNSable{
+
+    private static final String TAG = FCSNSRoomActivity.class.getSimpleName();
+
+    public static final int DIALOG_ME = 2;
+    public static final int DIALOG_OTHER = 1;
+    public static final int DIALOG_NOTICE = 3;
+    public static final int DIALOG_BAD = 4;
 
     public String data1,data2,data3,data4;
     public String am_weather = "날씨가 이상함";
@@ -57,6 +71,8 @@ public class FCSNSRoomActivity extends AppCompatActivity {
     public int bg_cnt = 0;
     public boolean bg_type = true;
     public ImageView view1;
+
+    ServerSendDialogAsyncTask dialogSendTask;
 
     @Override
     public void onBackPressed() {
@@ -154,16 +170,55 @@ public class FCSNSRoomActivity extends AppCompatActivity {
 
         /* 대화 정보로 초기화 */
         Button btnChat = (Button)findViewById(R.id.ar_btn_chat);
-        /*String str
-        for(Dialog dialog: FCSNSAppManager.getInstance().getPresDialogs()){
-            if(dialog.getFromId().equals()){
+        String strUserId = FCSNSAppManager.getInstance().getUser().get_id();
+        Relation relation = FCSNSAppManager.getInstance().getUser().getRelation();
 
-                //mListAdapter.addItem();
+        Log.d(TAG,"사용자 정보: " + FCSNSAppManager.getInstance().getUser());
+        Log.d(TAG, "방 정보: " + FCSNSAppManager.getInstance().getRooms());
+
+        for(Dialog dialog: FCSNSAppManager.getInstance().getPresDialogs()){
+            if(dialog.getFromId() == null) {
+                // 출처 모르는 경우 PASS
+                continue;
+            } else if(dialog.getFromId().equals(strUserId)){
+                // 사용자 대화 부분이므로 사용자 부분 추가
+                if(FCSNSAppManager.getInstance().getUser().getRole().equals("아버지")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_mom_head), dialog.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("어머니")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_dad_head), dialog.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("아들")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_son_head), dialog.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("딸")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_daugter_head), dialog.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                }
+
             } else {
-                // 대화 상대방 표시 이때 관계 정보에 맞춰서 보낸다.
-                if()
+                User userRel = null;//((Relation.FamilyShip) relation.getFamilyShips().get(1)).getUser();
+                for(Relation.FamilyShip familyShip : relation.getFamilyShips()){
+                    if(familyShip.getUser().get_id().equals(dialog.getFromId())){
+                        userRel = familyShip.getUser();
+                    }
+                }
+                //! 실험에 따른 고정 부
+                if(userRel.getRole().equals("아버지")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_dad_head), dialog.getContent(), DIALOG_OTHER);
+                    bg_type = true;
+                } else if(userRel.getRole().equals("어머니")) {
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_mom_head), dialog.getContent(), DIALOG_OTHER);
+                    bg_type = true;
+                } else if(userRel.getRole().equals("아들")) {
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_son_head), dialog.getContent(), DIALOG_OTHER);
+                    bg_type = true;
+                } else if(userRel.getRole().equals("딸")) {
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_daugter_head), dialog.getContent(), DIALOG_OTHER);
+                    bg_type = true;
+                }
             }
-        }*/
+        }
 
 
         assert btnChat != null;
@@ -172,7 +227,36 @@ public class FCSNSRoomActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 EditText editText =(EditText)findViewById(R.id.ar_edt_chat);
-                if(v.getId() == R.id.ar_btn_chat){
+                Dialog dialogNew = new Dialog(FCSNSAppManager.getInstance().getUser().get_id(),
+                        FCSNSAppManager.getInstance().getPresentRoom().get_id(),
+                        editText.getText().toString());
+                // 대화 정보에 추가
+                FCSNSAppManager.getInstance().getPresDialogs().add(dialogNew);
+
+                // 현재 리스트에 나의 대화 추가
+                if(FCSNSAppManager.getInstance().getUser().getRole().equals("아버지")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_mom_head), dialogNew.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("어머니")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_dad_head), dialogNew.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("아들")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_son_head), dialogNew.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                } else if(FCSNSAppManager.getInstance().getUser().getRole().equals("딸")){
+                    mListAdapter.addItem(getResources().getDrawable(R.drawable.status_daugter_head), dialogNew.getContent().toString(), DIALOG_ME);
+                    bg_type = true;
+                }
+                // 대화 내용 편집창에서 소거
+                mListAdapter.notifyDataSetChanged();
+                listView.setTranscriptMode(ListView.TRANSCRIPT_MODE_ALWAYS_SCROLL);
+                editText.setText("");
+
+                // 서버측에 대화 전송
+                dialogSendTask = new ServerSendDialogAsyncTask();
+                dialogSendTask.execute(dialogNew);
+
+                /*if(v.getId() == R.id.ar_btn_chat){
                     if (editText.getText().length() != 0) {
                         bg_cnt = 0;
                         if(chat_bubble == 1){
@@ -199,12 +283,14 @@ public class FCSNSRoomActivity extends AppCompatActivity {
                         listView.setTranscriptMode(ListView.TRANSCRIPT_MODE_ALWAYS_SCROLL);
                         editText.setText("");
                     }
-                }
+                }*/
 
             }
         });
 
         new ReceiveShortWeather().execute();
+        // 화면 스크롤 하단으로 내리기
+        listView.setTranscriptMode(ListView.TRANSCRIPT_MODE_ALWAYS_SCROLL);
 
     }//end of onCreate
 
@@ -492,5 +578,27 @@ public class FCSNSRoomActivity extends AppCompatActivity {
         }
 
         return true;
+    }
+
+    class ServerSendDialogAsyncTask extends AsyncTask<Dialog, Void, Void>{
+
+        @Override
+        protected Void doInBackground(Dialog... dialogs) {
+            String strResData = null;
+            Dialog dialog = dialogs[0];
+            String strSendData= String.format("\"data\"=%s", dialog.toJson());
+
+            try{
+                Gson gson = UtilGJSON.getGson();
+
+                Log.d(TAG, String.format("서버측에 대화 송신: %s", strSendData));
+                strResData = UtilHttp.getInstance()
+                        .postURL(URL_APP_SERVER + "/user/talk/room", strSendData);
+                Log.d(TAG, String.format("대화 전송 후 수신 내용: %s", strResData));
+            }catch (IOException ioe){
+
+            }
+            return null;
+        }
     }
 }// end of class
