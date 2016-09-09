@@ -1,11 +1,7 @@
 package edu.skku.httphumanict.fcsnsprojectver001.app.activity;
 
 import android.app.AlertDialog;
-import android.graphics.Color;
-import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.media.Image;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -27,10 +23,6 @@ import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
@@ -40,6 +32,10 @@ import java.util.ArrayList;
 
 import edu.skku.httphumanict.fcsnsprojectver001.R;
 import edu.skku.httphumanict.fcsnsprojectver001.app.FCSNSAppManager;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.Dialog;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  *
@@ -76,21 +72,21 @@ public class FCSNSRoomActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_room);
 
-        FCSNSAppManager.getInstance().setRoomAcitivity(this);
+        FCSNSAppManager.getInstance().setRoomActivity(this);
 
         final ListView listView;
-        final ListViewAdapter adapter;
+        final ListViewAdapter mListAdapter;
 
         final String state[] ={"운동중","식사중","이동중","회의중"};
         final String state1[] ={"진황이형","지연누나"};
         alert = new AlertDialog.Builder(FCSNSRoomActivity.this);
 
-        adapter = new ListViewAdapter();
+        mListAdapter = new ListViewAdapter();
         listView = (ListView) findViewById(R.id.listView);
-        listView.setAdapter(adapter);
+        listView.setAdapter(mListAdapter);
         final ImageView img = (ImageView)findViewById(R.id.imageView);
         final Spinner spin1 = (Spinner)findViewById(R.id.spinner);
-        final Spinner emoticon_sp = (Spinner)findViewById(R.id.emoticon);
+        final Spinner emoticon_sp = (Spinner)findViewById(R.id.ar_spn_emoticon);
 
         ReContainer = (RelativeLayout)findViewById(R.id.activity_main_container);
 
@@ -143,50 +139,63 @@ public class FCSNSRoomActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String str_state = emoticon_sp.getSelectedItem().toString();
                 if (str_state.equals("진황이형")) {
-                    adapter.add_emoticon(getResources().getDrawable(R.drawable.status_mom_head),getResources().getDrawable(R.drawable.jh_1),5);
+                    mListAdapter.add_emoticon(getResources().getDrawable(R.drawable.status_mom_head),getResources().getDrawable(R.drawable.jh_1),5);
                 } else if (str_state.equals("지연누나")) {
-                    adapter.add_emoticon(getResources().getDrawable(R.drawable.status_dad_head),getResources().getDrawable(R.drawable.jy_1),6);
+                    mListAdapter.add_emoticon(getResources().getDrawable(R.drawable.status_dad_head),getResources().getDrawable(R.drawable.jy_1),6);
                 }
                 str_state = "";
 
-                adapter.notifyDataSetChanged();
+                mListAdapter.notifyDataSetChanged();
             }
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
 
-        Button button = (Button)findViewById(R.id.button);
+        /* 대화 정보로 초기화 */
+        Button btnChat = (Button)findViewById(R.id.ar_btn_chat);
+        /*String str
+        for(Dialog dialog: FCSNSAppManager.getInstance().getPresDialogs()){
+            if(dialog.getFromId().equals()){
 
-        button.setOnClickListener(new Button.OnClickListener(){
+                //mListAdapter.addItem();
+            } else {
+                // 대화 상대방 표시 이때 관계 정보에 맞춰서 보낸다.
+                if()
+            }
+        }*/
+
+
+        assert btnChat != null;
+        btnChat.setOnClickListener(new Button.OnClickListener(){
 
             @Override
             public void onClick(View v) {
-                EditText editText =(EditText)findViewById(R.id.editText);
-                if(v.getId() == R.id.button){
+                EditText editText =(EditText)findViewById(R.id.ar_edt_chat);
+                if(v.getId() == R.id.ar_btn_chat){
                     if (editText.getText().length() != 0) {
                         bg_cnt = 0;
                         if(chat_bubble == 1){
-                            adapter.addItem(getResources().getDrawable(R.drawable.status_mom_head), editText.getText().toString(), 1);
+                            mListAdapter.addItem(getResources().getDrawable(R.drawable.status_mom_head), editText.getText().toString(), 1);
                             bg_type = true;
                             chat_bubble = 2;
                         }
 
                         else if (chat_bubble == 2){
-                            adapter.addItem(getResources().getDrawable(R.drawable.status_dad_head), editText.getText().toString(), 2);
+                            mListAdapter.addItem(getResources().getDrawable(R.drawable.status_dad_head), editText.getText().toString(), 2);
                             bg_type = true;
                             chat_bubble = 3;
                         }
                         else if (chat_bubble == 3){
-                            adapter.addItem(getResources().getDrawable(R.drawable.icon_512), editText.getText().toString(), 3);
+                            mListAdapter.addItem(getResources().getDrawable(R.drawable.icon_512), editText.getText().toString(), 3);
                             chat_bubble = 4;
                         }
                         else if (chat_bubble == 4){
-                            adapter.addItem(getResources().getDrawable(R.drawable.icon_512), editText.getText().toString(), 4);
+                            mListAdapter.addItem(getResources().getDrawable(R.drawable.icon_512), editText.getText().toString(), 4);
                             chat_bubble = 1;
 
                         }
-                        adapter.notifyDataSetChanged();
+                        mListAdapter.notifyDataSetChanged();
                         listView.setTranscriptMode(ListView.TRANSCRIPT_MODE_ALWAYS_SCROLL);
                         editText.setText("");
                     }
@@ -197,7 +206,7 @@ public class FCSNSRoomActivity extends AppCompatActivity {
 
         new ReceiveShortWeather().execute();
 
-    }//end of oncreate
+    }//end of onCreate
 
     Handler handler =new Handler(){
         @Override

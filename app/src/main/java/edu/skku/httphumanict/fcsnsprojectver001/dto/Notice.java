@@ -3,11 +3,13 @@ package edu.skku.httphumanict.fcsnsprojectver001.dto;
 import java.util.ArrayList;
 import java.util.Date;
 
+import edu.skku.httphumanict.fcsnsprojectver001.util.UtilGJSON;
+
 /**
  *
  * Created by sk on 2016-08-31.
  */
-public class Notice {
+public class Notice implements FCSNSDTOAble {
     String _id;
     String content;
     Date startDate;
@@ -42,6 +44,14 @@ public class Notice {
         sb.append(", checkedId=").append(checkedId);
         sb.append('}');
         return sb.toString();
+    }
+
+    /* JSON */
+    public String toJson(){
+        return UtilGJSON.toJSON(this);
+    }
+    public static Notice fromJson(String _strJSON){
+        return (Notice) UtilGJSON.fromJSON(_strJSON, Notice.class);
     }
 
     public String get_id() {

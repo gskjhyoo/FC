@@ -1,19 +1,48 @@
 package edu.skku.httphumanict.fcsnsprojectver001.app.activity;
 
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.gson.Gson;
+import com.google.gson.internal.LinkedTreeMap;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
 import edu.skku.httphumanict.fcsnsprojectver001.R;
+import edu.skku.httphumanict.fcsnsprojectver001.app.FCSNSAppManager;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.Dialog;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.Relation;
+import edu.skku.httphumanict.fcsnsprojectver001.dto.Room;
 import edu.skku.httphumanict.fcsnsprojectver001.dto.User;
+import edu.skku.httphumanict.fcsnsprojectver001.util.UtilGJSON;
+import edu.skku.httphumanict.fcsnsprojectver001.util.UtilHttp;
 import edu.skku.httphumanict.fcsnsprojectver001.util.UtilSPrefer;
 
-public class FCSNSLogoActivity extends AppCompatActivity {
+public class FCSNSLogoActivity extends AppCompatActivity implements FCSNSable {
 
     final static int DELAY_FINISH = 1;
+
+    public static final String TAG = FCSNSLogoActivity.class.getName();
+
+    /* 비동기 요청 사항 */
+    // 로그인 수행
+    public ServerLoginAsyncTask loginTask;
+    // 방데이터 동기화 수행
+    public ServerRoomDataAsyncTask roomDataTask;
+    // 대화 데이터 동기화 수행
+    public ServerDialogDataAsyncTask dialogDataTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,26 +51,107 @@ public class FCSNSLogoActivity extends AppCompatActivity {
         // 시간 측정 용
         long procTime = System.currentTimeMillis();
 
-//        UtilSPrefer.saveStrData(this, , User.class.getSimpleName(), );
+        // FCM
+        FirebaseMessaging.getInstance().subscribeToTopic("news");
+        // 토큰 값 받기
+        String strPushToken = FirebaseInstanceId.getInstance().getToken();
+        // 트큰 값 저장
 
+//
+//
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        /*// 이종성 정보
+        User savedUser = new User();
+        savedUser.set_id("57c6464cfb6a8e141146a1b7");
+        savedUser.setPhone("01029429511");
+        savedUser.setName("이종성");
+        savedUser.setBirthDate(new Date());
+        savedUser.setSex(1);
+        savedUser.setPushKey("test");
+        savedUser.setRole("아들");
+        */
+        // 김진황 정보
+        User savedUser = new User();
+        savedUser.set_id("57c478fd641796041bca7936");
+        savedUser.setPhone("01092342879");
+        savedUser.setName("김진황");
+        savedUser.setBirthDate(new Date());
+        savedUser.setSex(1);
+        savedUser.setPushKey("test");
+        savedUser.setRole("아들");
+        savedUser.setPushKey(strPushToken);
+        // 방 정보 로딩
+
+
+//        Toast.makeText(this.getApplicationContext(), user, ).show();
+        UtilSPrefer.saveStrData(this, SP_KEY, SP_KEY_USER, savedUser.toJson());
+        ////////////////////////////////////////////////////////////////////////////////////////////////
 
         // 1. 사용자 저장 정보 로딩
-//        UtilSPrefer.getSharedPreference(,);
+        String strSavedUserData = UtilSPrefer.getSharedPreference(this, SP_KEY).getString(SP_KEY_USER, null);
+        Log.d(TAG, "사용자 정보 로딩: " + strSavedUserData);
         // 2.1 사용자 정보 없는 경우
-            // 사용자 가입으로 진행 - 액티비티 전환
+        // 사용자 가입으로 진행 - 액티비티 전환
+        /* // 처음 실행하는 경우
+        if(strSavedUserData == null){
+            Log.d('사용자 처음 실행. 사용자 가입으로 전환');
+            Intent cStartIntnet = new Intent(this, FCSNSRegistActivity.class);
+            startActivity(cStartIntnet);
+            finish();
+        }
+        */
 
         // 2.2 사용자 정보가 있는 경우
-            // 사용자 정보를 이용하여 로그인 수행
+        // 사용자 정보를 이용하여 로그인 수행
+        User user = User.fromJson(strSavedUserData);
+        /// async request
+        loginTask = new ServerLoginAsyncTask();
+        FCSNSAppManager.getInstance().setUser(user);
 
-        // 3. 방 정보 로딩
 
+        // 로그인 수행
+        loginTask.execute(user);
+
+        Log.d(TAG, String.format("사용자 정보 출력: %s", FCSNSAppManager.getInstance().getUser()));
+
+        /// 3. 방 정보 sync
+        // 방 정보 로컬에서 로딩
+        Room[] rooms = UtilGJSON.getGson().fromJson(UtilSPrefer.getSharedPreference(this, SP_KEY).getString(SP_KEY_ROOMS, null), Room[].class);
+        ArrayList<Room> altRooms = new ArrayList<>();
+        if (rooms != null) {
+            for (Room room : altRooms) {
+                altRooms.add(room);
+                // room dialog 가 null 인 경우 추가
+                if(room.getSavedDialogs() == null)
+                    room.setSavedDialogs(new ArrayList<Dialog>());
+            }
+        }
+        // 현재 정보로 앱메니저에 설정
+        FCSNSAppManager.getInstance().setRooms(altRooms);
+        Log.d(TAG, String.format("로컬 방 정보: %s", FCSNSAppManager.getInstance().getRooms()));
+
+        // 서버측에 동기화 수행
+        roomDataTask = new ServerRoomDataAsyncTask();
+        roomDataTask.execute(FCSNSAppManager.getInstance().getUser());
+
+        // 이후 현재 갱신된 모든 정보 데이터로 저장
+        dialogDataTask = new ServerDialogDataAsyncTask();
+        dialogDataTask.execute(FCSNSAppManager.getInstance().getRooms());
+
+        // 갱신된 방 대화 정보 저장
+        UtilSPrefer.saveStrData(this, SP_KEY, SP_KEY_USER, UtilGJSON.getGson().toJson(FCSNSAppManager.getInstance().getRooms()));
+
+//        String strSavedRoomsData =
         // 4.1 방 정보가 없는 경우
-
+        // 서버측에 방 생성 정보 요청
         // 4.2 방 정보가 있는 경우
+        // 대화 내용 업데이트 확인 요청
+
+        // 해당 내용을 바탕으로 방 액티비티 수행
 
         procTime = procTime - System.currentTimeMillis();
         final FCSNSLogoActivity temp = this;
-        if(procTime < 1000){
+        if (procTime < 1000) {
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -49,9 +159,17 @@ public class FCSNSLogoActivity extends AppCompatActivity {
                     // 1초 이후 실행
                     Intent intent = new Intent(temp.getApplicationContext(), FCSNSRoomActivity.class);
                     startActivity(intent);
+                    // 현재 상태 SharedPreference에 저장
+                    FCSNSAppManager.getInstance().saveSharedPreference(FCSNSLogoActivity.this.getApplicationContext());
                     finish();
                 }
             }, 1000 - procTime);
+        } else {
+            Intent intent = new Intent(temp.getApplicationContext(), FCSNSRoomActivity.class);
+            startActivity(intent);
+            // 현재 상태 SharedPreference에 저장
+            FCSNSAppManager.getInstance().saveSharedPreference(FCSNSLogoActivity.this.getApplicationContext());
+            finish();
         }
 
        /* Intent intent = new Intent(this, FCSNSRoomActivity.class);
@@ -73,5 +191,152 @@ public class FCSNSLogoActivity extends AppCompatActivity {
             }
         }
     };*/
+    /**
+     *
+     */
+    public class ServerLoginAsyncTask extends AsyncTask<User, Void, String> {
+        @Override
+        protected String doInBackground(User... params) {
+            String strLoginResData = null;
+            String strRelationResData = null;
+            try {
+                User user = params[0];
+                strLoginResData = UtilHttp.getInstance().postURL(URL_APP_SERVER + "/user/login",
+                        String.format("data={\"userId\":\"%s\", \"pushKey\":\"%s\"}",
+                                user.get_id(), user.getPushKey()));
+                // 관계정보 동기화
+                strRelationResData = UtilHttp.getInstance().getURL(URL_APP_SERVER + String.format("/user/%s/has/relation", user.get_id()));
+                LinkedTreeMap<?,?> ltmRelationResData = UtilGJSON.getGson().fromJson(strRelationResData, LinkedTreeMap.class);
+
+                Relation cRelation = UtilGJSON.getGson().fromJson(UtilGJSON.getGson().toJson(ltmRelationResData.get("data")), Relation.class);
+                Log.d(TAG, String.format("서버로 부터 관계 수신 정보: %s", cRelation));
+                // 관계 정보 서버와 동기화
+                FCSNSAppManager.getInstance().getUser().setRelation(cRelation);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return strLoginResData;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result == null) {
+                // 비정상 실행된 경우
+                Toast.makeText(FCSNSLogoActivity.this.getApplicationContext(), "로그인 실패. 서버 연결 실패", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // parsing 작업
+            LinkedTreeMap ltmParsingData = UtilGJSON.getGson().fromJson(result, LinkedTreeMap.class);
+            if (ltmParsingData.get("state").equals("success")) {
+                // 로그인 성공
+                Toast.makeText(FCSNSLogoActivity.this.getApplicationContext(), "로그인 성공", Toast.LENGTH_SHORT).show();
+            } else {
+                // 로그인 실패
+                Toast.makeText(FCSNSLogoActivity.this.getApplicationContext(), "로그인 실패", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+    }// end of class
+
+    /**
+     * 비동기 처리 이후 모든 요소가
+     */
+    public class ServerRoomDataAsyncTask extends AsyncTask<User, Void, Void> {
+
+        @Override
+        protected Void doInBackground(User... params) {
+            String strResData = null;
+            User user = params[0];
+            // 서버로 부터 사용자 방 정보 및 대화 정보 가져오기
+            // 첫번째 인자 User 정보
+            try {
+                // 대화방 정보를 갱신한다.
+                Gson gson = UtilGJSON.getGson();
+                //String strRequestURL = URL_APP_SERVER +
+                // 수신 정보 조회
+                strResData = UtilHttp.getInstance().getURL(URL_APP_SERVER + String.format("/user/%s/has/rooms", user.get_id()));
+
+                Log.d(TAG, String.format("사용자 방 정보 조회 수신 데이터: %s", strResData));
+
+                // 수신이 불량한 경우
+                if(strResData == null || strResData.isEmpty() || strResData.contains("err") || !strResData.contains("data")){
+                    Log.d(TAG, "수신 정보 불량");
+                    return null;
+                }
+                LinkedTreeMap resData = gson.fromJson(strResData, LinkedTreeMap.class);
+                Room[] cArrRcvRooms = gson.fromJson(gson.toJson(resData.get("data")), Room[].class);
+
+                ArrayList<Integer> altIndex = new ArrayList<>();
+                for (int i = 0; i < cArrRcvRooms.length; i++) {
+                    // 현재 저장되어 있는 room 객체 정보 갱신해야함.
+                    boolean isEqual = false;
+
+                    // 같은 방 있는 경우 최신으로 갱신
+                    for (int j = 0; i < FCSNSAppManager.getInstance().getRooms().size(); j++) {
+                        if (FCSNSAppManager.getInstance().getRooms().get(j).get_id().equals(cArrRcvRooms[i].get_id())) {
+                            isEqual = true;
+                            FCSNSAppManager.getInstance().getRooms().get(j).setSync(cArrRcvRooms[i]);
+                            break;
+                        }
+                    }
+                    // 같은게 없는 경우 삽입을 수행한다
+                    if (!isEqual)
+                        altIndex.add(i);
+
+                }
+                Log.d(TAG, String.format("방 새로 추가된 인덱스: %s", altIndex.toString()));
+                // 없는 인자들만 모아서 새로히 삽입 처리
+                for (int idx : altIndex) {
+                    Log.d(TAG, String.format("방 새로 추되는 요소: %s", cArrRcvRooms[idx]));
+                    FCSNSAppManager.getInstance().getRooms().add(cArrRcvRooms[idx]);
+                }
+                Log.d(TAG, String.format("서버 측에서 갱신한 방 정보: %s", FCSNSAppManager.getInstance().getRooms()));
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }// end of inner class
+
+    public class ServerDialogDataAsyncTask extends AsyncTask<List<Room>, Void, Void> {
+        @Override
+        protected Void doInBackground(List<Room>... params) {
+            List<Room> lstRooms = params[0];
+            Gson gson = UtilGJSON.getGson();
+            String strResData = null;
+            try {
+                // 대화방 리스트를 이용하여 대화 갱신
+                for (Room room : lstRooms) {
+                    // room /room/:id/contained/dialogs
+                    strResData = UtilHttp.getInstance().getURL(String.format(URL_APP_SERVER
+                            + "/room/%s/contained/dialogs", room.get_id()));
+                    // 각 URL 요청 수행
+
+                    LinkedTreeMap resData = gson.fromJson(strResData, LinkedTreeMap.class);
+                    Dialog[] dialogs = gson.fromJson(gson.toJson(resData.get("data")), Dialog[].class);
+                    Log.d(TAG, String.format("대화 수신 내역 파싱 내용: %s", Arrays.asList(dialogs).toString()));
+                    ArrayList<Dialog> arlDialogs = new ArrayList<>();
+                    for(int i = 0; i < dialogs.length; i++){
+                        arlDialogs.add(dialogs[i]);
+                    }
+                    // 현재 있는 갯수와 새로 받은 갯수 비교
+                    //! 차후 서버로 부터 갱신 날짜와 갯수 비교를 통해 재요청을 수행하여 정보를 갱신하는 쪽으로 구현 해야 함.
+                    //! 지금은 모든 대화를 서버를 통해 받고 이를 비교하는 것으로 함.
+                    if (room.getDialogs() == null || room.getDialogs().size() != dialogs.length) {
+                        // 같지 않은 경우 갱신
+                        room.setDialogs(arlDialogs);
+                    }
+                }
+                Log.d(TAG, String.format("대화 정보 갱신: %s", FCSNSAppManager.getInstance().getRooms()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+
+    }// end of inner class
 
 }// end of class
